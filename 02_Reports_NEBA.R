@@ -44,6 +44,8 @@ paste.table <- function() {
 
 FTTH.TESA.SI.file<- './out_data/datos_neba_categorizados.txt'
 coberturaMMB.file <- '../000_DWH_txt_files/00_Coberturas/01_out_data/01_total_direcciones_FTTH.txt'
+datos.munis.NEBA.file <- './input_data/ine_municipios_NEBA.xlsx'
+por.cabecera.file <- './out_data/analisis_cabecera.xlsx'
 
 
 FTTH.TESA.SI <- data.table(read.csv(file = FTTH.TESA.SI.file,
@@ -52,7 +54,10 @@ FTTH.TESA.SI <- data.table(read.csv(file = FTTH.TESA.SI.file,
                                      dec = ",",
                                      colClasses = 'character',
                                      strip.white = T,
-                                     comment.char = ""))
+                                     comment.char = "",
+                                     encoding = 'UTF-8'))
+
+rm(FTTH.TESA.SI.file)
 
 
 CoberturaMMB <- data.table(read.csv(file = coberturaMMB.file,
@@ -64,9 +69,23 @@ CoberturaMMB <- data.table(read.csv(file = coberturaMMB.file,
                                     strip.white = T,
                                     comment.char = ""))
 
+rm(coberturaMMB.file)
+
 CoberturaMMB <- CoberturaMMB[ranking ==1 & ordenada.tipo.huella != '10_NEBA',]
 CoberturaMMB$UUII <- as.integer(CoberturaMMB$UUII)
 
 CoberturaMMB <- CoberturaMMB[, .(UUII=sum(UUII)), by = c('G18', 'ordenada.tipo.huella')]
 CoberturaMMB <- CoberturaMMB[order(-UUII, G18)]
 CoberturaMMB <- CoberturaMMB[!duplicated(G18),]
+
+provincias.NEBA <- as.data.table(read.xlsx(datos.munis.NEBA.file, sheetName = 'PROVINCIAS', encoding = 'UTF-8'))
+
+FTTH.TESA.SI <- merge(FTTH.TESA.SI, provincias.NEBA[, c('CODIGO_PROVINCIA', 'PROVINCIA','PROVINCIA_ABIERTA')], all.x = T, by.x = 'CP', by.y = 'CODIGO_PROVINCIA')
+FTTH.TESA.SI <- merge(FTTH.TESA.SI, CoberturaMMB[, c('G18', 'ordenada.tipo.huella')], all.x = T, by.x = 'Gescal', by.y = 'G18')
+FTTH.TESA.SI$solapada <- 'no'
+FTTH.TESA.SI[!is.na(ordenada.tipo.huella), solapada := 'si']
+FTTH.TESA.SI$UUII <- as.integer(FTTH.TESA.SI$UUII)
+
+analisis.cabecera.PAI <- FTTH.TESA.SI[, .(UUII = sum(UUII), edificios = length(Gescal)), by = c('CP', 'Localidad', 'MIGA.Central', 'PAI.L', 'ZET', 'ZEP', 'PROVINCIA','PROVINCIA_ABIERTA', 'solapada')]
+write.xlsx(analisis.cabecera.PAI, por.cabecera.file, sheetName = 'datos', row.names = F)
+
