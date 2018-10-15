@@ -9,6 +9,7 @@ library(readxl)
 library(stringr)
 library(data.table)
 library(zoo)
+library(zip)
 
 ## Environment cleanning
 
@@ -44,14 +45,15 @@ paste.table <- function() {
 
 ## Definicion de rutas y variables estáticas
 
-VULA.file <- 'C:/00_datos_usuario/01_projects/000_DWH_txt_files/00_Coberturas/02_NEBA_VULA/FICH2IRO.csv'
-coberturaMMB.file <- 'C:/00_datos_usuario/01_projects/000_DWH_txt_files/00_Coberturas/01_out_data/01_total_direcciones_FTTH.txt'
+VULA.file <- './input_data/FICH2IRO.csv'
+coberturaMMB.file <- '../000_DWH_txt_files/00_Coberturas/01_out_data/01_total_direcciones_FTTH.txt'
 preMMB.file <- './input_data/datos_preMMB.csv'
 datos.NAE.file <- './input_data/20180402_MUN190_OUTPUT_INMUEBLES_PROCESADO.csv'
 datos.GESCON.file <- './input_data/NEBA_SI.txt'
 datos.munis.NEBA.file <- './input_data/ine_municipios_NEBA.xlsx'
 munis.control.file <- '../00_Analisis_municipios/data/clean/00_Analisis_municipios.xlsx'
-migaCU.file <- 'C:/00_datos_usuario/01_projects/01_remedy/data/clean/irolista/G17_miga.txt'
+migaCU.file <- '../01_remedy/data/clean/irolista/G17_miga.txt'
+datos.munis.NEBA.file <- './input_data/ine_municipios_NEBA.xlsx'
 
 
 
@@ -140,31 +142,31 @@ coberturaVULA.sin.UUII[, c('UUII', 'origenUUII') := NULL]
 rm(NAE.datos)
 
 
-### Poblar resto de información con datos de GESCON
+# ### Poblar resto de información con datos de GESCON
 
-GESCON.datos <- data.table(read.csv(file = datos.GESCON.file,
-                                 header = T,
-                                 sep = ";",
-                                 dec = ",",
-                                 colClasses = 'character',
-                                 encoding = 'Latin-1',
-                                 comment.char = ""))
+ GESCON.datos <- data.table(read.csv(file = datos.GESCON.file,
+                                  header = T,
+                                  sep = ";",
+                                  dec = ",",
+                                  colClasses = 'character',
+                                  encoding = 'Latin-1',
+                                  comment.char = ""))
 
-GESCON.datos$TOTAL <- as.integer(GESCON.datos$TOTAL)
-GESCON.datos <- GESCON.datos[is.na(TOTAL)==FALSE,]
-GESCON.datos <- GESCON.datos[order(G17, TERRITORY_OWNER)]
-GESCON.datos.duplicados <- GESCON.datos[duplicated(G17),]
-GESCON.datos <- GESCON.datos[!duplicated(G17),]
-GESCON.datos <- GESCON.datos[, c('G17', 'TOTAL')]
-GESCON.datos <- GESCON.datos[, .(UUII=sum(TOTAL)), by = 'G17']
-GESCON.datos$origenUUII <- 'GESCON'
+ GESCON.datos$TOTAL <- as.integer(GESCON.datos$TOTAL)
+ GESCON.datos <- GESCON.datos[is.na(TOTAL)==FALSE,]
+ GESCON.datos <- GESCON.datos[order(G17, TERRITORY_OWNER)]
+ GESCON.datos.duplicados <- GESCON.datos[duplicated(G17),]
+ GESCON.datos <- GESCON.datos[!duplicated(G17),]
+ GESCON.datos <- GESCON.datos[, c('G17', 'TOTAL')]
+ GESCON.datos <- GESCON.datos[, .(UUII=sum(TOTAL)), by = 'G17']
+ GESCON.datos$origenUUII <- 'GESCON'
 
-coberturaVULA.sin.UUII <- merge(coberturaVULA.sin.UUII, GESCON.datos, all.x = T, by.x = 'Gescal', by.y = 'G17')
-coberturaVULA.con.UUII <- rbind(coberturaVULA.con.UUII, coberturaVULA.sin.UUII[is.na(UUII) == FALSE,])
-coberturaVULA.sin.UUII <- coberturaVULA.sin.UUII[is.na(UUII) == TRUE,]
-coberturaVULA.sin.UUII[, c('UUII', 'origenUUII') := NULL]
+ coberturaVULA.sin.UUII <- merge(coberturaVULA.sin.UUII, GESCON.datos, all.x = T, by.x = 'Gescal', by.y = 'G17')
+ coberturaVULA.con.UUII <- rbind(coberturaVULA.con.UUII, coberturaVULA.sin.UUII[is.na(UUII) == FALSE,])
+ coberturaVULA.sin.UUII <- coberturaVULA.sin.UUII[is.na(UUII) == TRUE,]
+ coberturaVULA.sin.UUII[, c('UUII', 'origenUUII') := NULL]
 
-#rm(GESCON.datos)
+rm(GESCON.datos)
 
 
 ### Poblar restante con datos Miga Cobre
@@ -258,7 +260,7 @@ coberturaVULA.con.UUII[is.na(MIGA_Cu), MIGA_Cu := MIGA.Central]
 
 ## Cargar datos de ine y Marcar ZET
 
-NEBA.munis <- data.table(read_excel(datos.munis.NEBA.file, sheet = 'ZET', col_names = T))
+NEBA.munis <- data.table(read_excel(path = datos.munis.NEBA.file, sheet = 'ZET', col_names = T))
 NEBA.munis <- NEBA.munis[is.na(ine_txt) == FALSE,]
 NEBA.munis$Muni_ine <- NULL
 NEBA.munis <- NEBA.munis[!duplicated('CP', 'Localidad'),]
@@ -270,14 +272,14 @@ coberturaVULA.con.UUII[is.na(ZET), ZET:=0]
 
 ## Marcar provincias abiertas
 
-provincias.abiertas <- data.table(read_excel(datos.munis.NEBA.file, sheet = 'PROVINCIAS', col_names = T))
+provincias.abiertas <- data.table(read_excel(path = datos.munis.NEBA.file, sheet = 'PROVINCIAS', col_names = T))
 provincias.abiertas$PROVINCIA <- NULL
 
 coberturaVULA.con.UUII <- merge(coberturaVULA.con.UUII, provincias.abiertas, all.x = T, by.x = 'Provincia', by.y = 'CODIGO_PROVINCIA')
 
 ## Marcar exclusiones por MIGA de cobre en ZEP
 
-ZEP.MIGA <- data.table(read_excel(datos.munis.NEBA.file, sheet = 'ZEP', col_names = T))
+ZEP.MIGA <- data.table(read_excel(path = datos.munis.NEBA.file, sheet = 'ZEP', col_names = T))
 ZEP.MIGA$INE_muni <- NULL
 
 coberturaVULA.con.UUII <- merge(coberturaVULA.con.UUII, ZEP.MIGA, all.x = T, by.x = 'MIGA_Cu', by.y = 'MIGA')
@@ -355,63 +357,33 @@ setcolorder(coberturaVULA.con.UUII, c("ine_txt", "Gescal", "ID_TECNICO_DE_LA_VIA
                                       "OLT", "TIPO_INSTALACION", "UUII","accesos", "tipo_huella","fecha_dato",
                                       "origenUUII", "CP", "MIGA.Central", "MIGA_Cu", "ZET", "ZEP", "NEBA_disponible", "PROVINCIA_ABIERTA", "Par.impar", "G7" ))
 
-########################################################### REPORTING ################################################################################
-
-# gescon01 <- data.table(read.csv(file = './input_data/Gescales No Solapados FIBNEB01.txt',
-#                                 header = T,
-#                                 sep = ";",
-#                                 dec = ",",
-#                                 colClasses = 'character',
-#                                 encoding = 'UTF-8',
-#                                 comment.char = ""))
-# 
-# 
-# gescon01 <- gescon01[, .N, by = .(str_sub(GESCAL, 1, 17))]
-# setnames(gescon01, c('str_sub', 'N'), c('G17', 'registros'))
-# 
-# gescon01 <- merge(gescon01, coberturaVULA.con.UUII[, c('Gescal', 'UUII', 'NEBA_disponible')], all.x = T, by.x = 'G17', by.y = 'Gescal')
-# error.neba.actual <- gescon01[NEBA_disponible != 'NEB01', ]
-# 
-# deficit.neba <- merge(coberturaVULA.con.UUII[NEBA_disponible == 'NEB01', c('Gescal', 'UUII')], gescon01, all.x = T, by.x = 'Gescal', by.y = 'G17')
-# deficit.neba <- deficit.neba[is.na(NEBA_disponible),]
+########################################################### EXPORTS ###########################################################################################
 
 
-# #### Analisis Baleares
-# 
-# CoberturaMMB <- data.table(read.csv(file = coberturaMMB.file,
-#                                     header = T,
-#                                     sep = ";",
-#                                     dec = ",",
-#                                     colClasses = 'character',
-#                                     encoding = 'UTF-8',
-#                                     strip.white = T,
-#                                     comment.char = ""))
-# 
-# CoberturaMMB$UUII <- as.integer(CoberturaMMB$UUII)
-# 
-# baleares.bitstream <- CoberturaMMB[Provincia == 'SANTA CRUZ DE TENERIFE' | Provincia == 'LAS PALMAS', .(UUII = sum(UUII)), by =.(G18, Provincia, Poblacion, PAI)]
-# baleares.bitstream <- baleares.bitstream[!duplicated(baleares.bitstream$G18),]
-# 
-# baleares.NEBA <- coberturaVULA.con.UUII[CP == '35' | CP == '38',]
-# baleares.NEBA <- merge(baleares.NEBA, baleares.bitstream[, c('G18', 'PAI')], all.x = T, by.x = 'Gescal', by.y = 'G18')
-# baleares.NEBA$clasificacion <- 'Libre'
-# baleares.NEBA[!is.na(PAI), clasificacion:='Solapado BTS']
-# baleares.NEBA[clasificacion == 'Libre' & ZET == 1, clasificacion:='ZET']
-# baleares.NEBA[clasificacion == 'Libre' & ZEP == 1, clasificacion:='ZEP']
-# 
-# copy.table(baleares.NEBA[, .(UUII = sum(UUII), edficios = length(Gescal)), by = .(clasificacion, Provincia, Localidad, MIGA.Central)])
+fecha.datosTESA <- file.mtime(VULA.file)
+AAMMDD <- str_replace_all(str_sub(fecha.datosTESA,start = 3, end = 10), '-', '')
 
-########################################################### EXPORTS ################################################################################
+## Agregado por PAI-L
+
+FTTH.TESA.SI <- merge(coberturaVULA.con.UUII[, .(CP, Localidad, Nombre.Via, Gescal, MIGA.Central, PAI.L,MIGA_Cu, ZET, ZEP, UUII, origenUUII)], provincias, all.x = T, by.x = 'CP', by.y = 'CP')
+analisis.cabecera.PAI <- FTTH.TESA.SI[, .(UUII = sum(UUII), edificios = length(Gescal)), by = c('CP', 'Localidad', 'MIGA.Central', 'PAI.L', 'ZET', 'ZEP', 'Provincia')]
+analisis.cabecera.PAI$fecha <- AAMMDD
+
+write.table(analisis.cabecera.PAI,
+            './out_data/agregado_PAI.txt',
+            row.names = F,
+            quote = F,
+            sep = ';',
+            fileEncoding = 'UTF-8')
+
+write.xlsx(x = analisis.cabecera.PAI, file = './out_data/agregado_PAI.xlsx', sheetName = 'datosPAI', col.names = T, showNA = F, row.names = F)
+
+zip.nombre <- str_c('./out_data/HISTORICO/agregado_cabecera/', AAMMDD, '_', 'agregado_PAI.zip', sep = "", collapse = T )
+
+zip(zipfile = zip.nombre, './out_data/agregado_PAI.txt', recurse = F)
 
 
-## Exportamos filtrando a la disponibilidad de PAI y municipios no exclusion
-
-# write.table(coberturaVULA.con.UUII[NEBA_disponible == 'NEB01', 1:17],
-#             './out_data/huella_NEBA.txt',
-#             row.names = F,
-#             quote = F,
-#             sep = ';',
-#             fileEncoding = 'UTF-8')
+## Export totales
 
 write.table(coberturaVULA.con.UUII[, 1:22],
             './out_data/huella_total_NEBA.txt',
@@ -419,6 +391,12 @@ write.table(coberturaVULA.con.UUII[, 1:22],
             quote = F,
             sep = ';',
             fileEncoding = 'UTF-8')
+
+
+zip.nombre <- str_c('./out_data/HISTORICO/totales/', AAMMDD, '_', 'huella_total_NEBA.zip', sep = "", collapse = T )
+
+zip(zipfile = zip.nombre, './out_data/huella_total_NEBA.txt', recurse = F)
+
 
 
 ## Export para sistemas
@@ -430,16 +408,11 @@ write.table(coberturaVULA.con.UUII[, .(CP, Localidad, Nombre.Via, Gescal, MIGA.C
             sep = ';',
             fileEncoding = 'UTF-8')
 
+zip.nombre <- str_c('./out_data/HISTORICO/enviado_SI/', AAMMDD, '_', 'datos_neba_categorizados.zip', sep = "", collapse = T )
+
+zip(zipfile = zip.nombre, './out_data/datos_neba_categorizados.txt', recurse = F)
 
 
-#### Resumen por provincia y huella
 
-coberturaVULA.con.UUII$tipo_huella <- NULL
-CoberturaMMB$UUII <- NULL
-
-coberturaVULA.con.UUII <- merge(coberturaVULA.con.UUII, CoberturaMMB, all.x = T, by.x ='Gescal', by.y = 'G18')
-coberturaVULA.con.UUII[is.na(ordenada.tipo.huella), ordenada.tipo.huella:= '10_NEBA']
-
-copy.table(coberturaVULA.con.UUII[, .(UUII = sum(UUII), edificios = length(Gescal)), by = c('CP', 'Provincia', 'ZET', 'ZEP', 'ordenada.tipo.huella', 'PROVINCIA_ABIERTA')])
 
 
