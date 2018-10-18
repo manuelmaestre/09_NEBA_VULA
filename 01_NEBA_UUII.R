@@ -6,6 +6,7 @@
 ## Library load
 
 library(readxl)
+library(xlsx)
 library(stringr)
 library(data.table)
 library(zoo)
@@ -261,6 +262,9 @@ coberturaVULA.con.UUII[is.na(MIGA_Cu), MIGA_Cu := MIGA.Central]
 ## Cargar datos de ine y Marcar ZET
 
 NEBA.munis <- data.table(read_excel(path = datos.munis.NEBA.file, sheet = 'ZET', col_names = T))
+NEBA.munis <- NEBA.munis[,1:5]
+write.xlsx2(merge(coberturaVULA.con.UUII[, .N, by = c('Provincia', 'Localidad')], NEBA.munis, all.x = T, by.x = c('Provincia', 'Localidad'), by.y= c('CP', 'Localidad'))[is.na(ZET), c('Provincia', 'Localidad')],
+            'NuevosMunicipios.xlsx')
 NEBA.munis <- NEBA.munis[is.na(ine_txt) == FALSE,]
 NEBA.munis$Muni_ine <- NULL
 NEBA.munis <- NEBA.munis[!duplicated('CP', 'Localidad'),]
@@ -352,10 +356,10 @@ coberturaVULA.con.UUII$tipo_huella <- 'NEBA'
 coberturaVULA.con.UUII$Numero <- substr(coberturaVULA.con.UUII$Gescal, 13, 17)
 str_fecha_dato <- str_replace_all(Sys.Date(), "-", "")
 coberturaVULA.con.UUII$fecha_dato <- str_fecha_dato
-setcolorder(coberturaVULA.con.UUII, c("ine_txt", "Gescal", "ID_TECNICO_DE_LA_VIA", "Provincia", 
+setcolorder(coberturaVULA.con.UUII, c("Gescal", "ine_txt", "ID_TECNICO_DE_LA_VIA", "Provincia", 
                                       "Localidad", "CodigoPostal", "Tipo.Via", "Nombre.Via", "Numero", "BIS", "PAI.L",
-                                      "OLT", "TIPO_INSTALACION", "UUII","accesos", "tipo_huella","fecha_dato",
-                                      "origenUUII", "CP", "MIGA.Central", "MIGA_Cu", "ZET", "ZEP", "NEBA_disponible", "PROVINCIA_ABIERTA", "Par.impar", "G7" ))
+                                      "OLT", "TIPO_INSTALACION", "UUII","accesos", "fecha_dato",
+                                      "origenUUII", "CP", "MIGA.Central", "MIGA_Cu", "ZET", "ZEP", "tipo_huella", "NEBA_disponible", "PROVINCIA_ABIERTA", "Par.impar", "G7" ))
 
 ########################################################### EXPORTS ###########################################################################################
 
