@@ -78,7 +78,7 @@ CoberturaMMB <- CoberturaMMB[, .(UUII=sum(UUII)), by = c('G18', 'ordenada.tipo.h
 CoberturaMMB <- CoberturaMMB[order(-UUII, G18)]
 CoberturaMMB <- CoberturaMMB[!duplicated(G18),]
 
-provincias.NEBA <- as.data.table(read.xlsx(datos.munis.NEBA.file, sheetName = 'PROVINCIAS', encoding = 'UTF-8'))
+provincias.NEBA <- as.data.table(data.table(read_excel(path = datos.munis.NEBA.file, sheet = 'PROVINCIAS', col_names = T)))
 
 FTTH.TESA.SI <- merge(FTTH.TESA.SI, provincias.NEBA[, c('CODIGO_PROVINCIA', 'PROVINCIA','PROVINCIA_ABIERTA')], all.x = T, by.x = 'CP', by.y = 'CODIGO_PROVINCIA')
 FTTH.TESA.SI <- merge(FTTH.TESA.SI, CoberturaMMB[, c('G18', 'ordenada.tipo.huella')], all.x = T, by.x = 'Gescal', by.y = 'G18')
@@ -87,5 +87,11 @@ FTTH.TESA.SI[!is.na(ordenada.tipo.huella), solapada := 'si']
 FTTH.TESA.SI$UUII <- as.integer(FTTH.TESA.SI$UUII)
 
 analisis.cabecera.PAI <- FTTH.TESA.SI[, .(UUII = sum(UUII), edificios = length(Gescal)), by = c('CP', 'Localidad', 'MIGA.Central', 'PAI.L', 'ZET', 'ZEP', 'PROVINCIA','PROVINCIA_ABIERTA', 'solapada')]
+
+ineTESA.NEBA <- as.data.table(data.table(read_excel(path = datos.munis.NEBA.file, sheet = 'ZET', col_names = T)))
+ineTESA.NEBA <- ineTESA.NEBA[, 1:3]
+analisis.cabecera.PAI <- merge(analisis.cabecera.PAI, ineTESA.NEBA, all.x = T, by.x = c('CP', 'Localidad'), by.y = c('CP', 'Localidad'))
+
+
 write.xlsx(analisis.cabecera.PAI, por.cabecera.file, sheetName = 'datos', row.names = F)
 
