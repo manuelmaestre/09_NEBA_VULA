@@ -122,26 +122,26 @@ coberturaVULA.sin.UUII[, c('UUII', 'origenUUII') := NULL]
 rm(G17.preMMB)
 
 ### Poblar cobertura pendiente VULA con datos NAE
-
-NAE.datos <- data.table(read.csv(file = datos.NAE.file,
-                                  header = T,
-                                  sep = ";",
-                                  dec = ",",
-                                  colClasses = 'character',
-                                  encoding = 'UTF-8',
-                                  comment.char = ""))
-
-NAE.datos <- NAE.datos[, .N, by = 'gescal17']
-setnames(NAE.datos, 'N', 'UUII')
-NAE.datos$origenUUII <- 'NAE'
-NAE.datos <- NAE.datos[!duplicated(gescal17),]
-coberturaVULA.sin.UUII <- merge(coberturaVULA.sin.UUII, NAE.datos, all.x = T, by.x = 'Gescal', by.y = 'gescal17')
-coberturaVULA.con.UUII <- rbind(coberturaVULA.con.UUII, coberturaVULA.sin.UUII[is.na(UUII) == FALSE,])
-coberturaVULA.sin.UUII <- coberturaVULA.sin.UUII[is.na(UUII) == TRUE,]
-coberturaVULA.sin.UUII[, c('UUII', 'origenUUII') := NULL]
-
-rm(NAE.datos)
-
+# 
+# NAE.datos <- data.table(read.csv(file = datos.NAE.file,
+#                                   header = T,
+#                                   sep = ";",
+#                                   dec = ",",
+#                                   colClasses = 'character',
+#                                   encoding = 'UTF-8',
+#                                   comment.char = ""))
+# 
+# NAE.datos <- NAE.datos[, .N, by = 'gescal17']
+# setnames(NAE.datos, 'N', 'UUII')
+# NAE.datos$origenUUII <- 'NAE'
+# NAE.datos <- NAE.datos[!duplicated(gescal17),]
+# coberturaVULA.sin.UUII <- merge(coberturaVULA.sin.UUII, NAE.datos, all.x = T, by.x = 'Gescal', by.y = 'gescal17')
+# coberturaVULA.con.UUII <- rbind(coberturaVULA.con.UUII, coberturaVULA.sin.UUII[is.na(UUII) == FALSE,])
+# coberturaVULA.sin.UUII <- coberturaVULA.sin.UUII[is.na(UUII) == TRUE,]
+# coberturaVULA.sin.UUII[, c('UUII', 'origenUUII') := NULL]
+# 
+# rm(NAE.datos)
+# 
 
 # ### Poblar resto de información con datos de GESCON
 
@@ -185,6 +185,38 @@ MIGA.cu.G17 <- MIGA.cu.G17[!duplicated(G18),]
 MIGA.cu.G17$origenUUII <- 'Migacobre'
 coberturaVULA.sin.UUII <- merge(coberturaVULA.sin.UUII, MIGA.cu.G17, all.x = T, by.x = 'Gescal', by.y = 'G18')
 coberturaVULA.sin.UUII$MIGA_Cu <- NULL
+setcolorder(coberturaVULA.sin.UUII, colnames(coberturaVULA.con.UUII))
+coberturaVULA.con.UUII <- rbind(coberturaVULA.con.UUII, coberturaVULA.sin.UUII[is.na(UUII) == FALSE,])
+coberturaVULA.sin.UUII <- coberturaVULA.sin.UUII[is.na(UUII) == TRUE,]
+
+
+### Las que aún no tienen UUII asignamos el promedio de UUII restantes desde INE
+NEBA.munis <- data.table(read_excel(path = datos.munis.NEBA.file, sheet = 'ZET', col_names = T))
+munis.control <- data.table(read_excel(munis.control.file, sheet = 'Revision', col_names = T, skip = 7))
+munis.control <- munis.control[,c("ine txt", "UUII_INE")]
+UUII.por.municipio <- coberturaVULA.con.UUII[, .(UUII = sum(as.integer(UUII))), by = c('Provincia', 'Localidad')]
+UUII.por.municipio <- merge(UUII.por.municipio, NEBA.munis[,1:3], by.x = c("Provincia", "Localidad"), by.y = c("CP", "Localidad"))
+UUII.por.INE <- UUII.por.municipio[, .(UUII = sum(UUII)), by = 'ine_txt'][is.na(ine_txt) ==F, ]
+UUII.por.INE <- merge(UUII.por.INE, munis.control, by.x = 'ine_txt', by.y = "ine txt")
+UUII.por.INE$repartir <- UUII.por.INE$UUII_INE-UUII.por.INE$UUII
+UUII.por.INE[repartir <0, repartir:=0]
+
+fincas.sin.UUII <- coberturaVULA.sin.UUII[, .(fincas = length(Gescal)), by = c('Provincia', 'Localidad')]
+fincas.sin.UUII <-  merge(fincas.sin.UUII, NEBA.munis[,1:3], by.x = c("Provincia", "Localidad"), by.y = c("CP", "Localidad"))
+fincas.sin.UUII <- fincas.sin.UUII[, .(fincas = sum(fincas)), by = "ine_txt"][is.na(ine_txt) == F, ]
+
+UUII.por.INE <- merge(UUII.por.INE, fincas.sin.UUII, by.x = "ine_txt", by.y = "ine_txt")
+UUII.por.INE[, UUII.promedio := as.double(as.integer(repartir/fincas))]
+UUII.por.INE[UUII.promedio == 0, UUII.promedio := 0.0001]
+
+coberturaVULA.sin.UUII <- merge(coberturaVULA.sin.UUII, NEBA.munis[, 1:3], all.x = T, by.x = c("Provincia", "Localidad"), by.y = c("CP", "Localidad"))
+coberturaVULA.sin.UUII$UUII <- NULL
+coberturaVULA.sin.UUII <- merge(coberturaVULA.sin.UUII, UUII.por.INE[, c("ine_txt", "UUII.promedio")], all.x = T, by.x = 'ine_txt', by.y = 'ine_txt')
+setnames(coberturaVULA.sin.UUII, "UUII.promedio", "UUII")
+coberturaVULA.sin.UUII$UUII <- as.integer(coberturaVULA.sin.UUII$UUII)
+coberturaVULA.sin.UUII[is.na(UUII) == F, origenUUII := 'Relleno hasta UUII INE']
+coberturaVULA.con.UUII$UUII <- as.integer(coberturaVULA.con.UUII$UUII)
+coberturaVULA.sin.UUII$ine_txt <- NULL
 setcolorder(coberturaVULA.sin.UUII, colnames(coberturaVULA.con.UUII))
 coberturaVULA.con.UUII <- rbind(coberturaVULA.con.UUII, coberturaVULA.sin.UUII[is.na(UUII) == FALSE,])
 coberturaVULA.sin.UUII <- coberturaVULA.sin.UUII[is.na(UUII) == TRUE,]
@@ -255,9 +287,7 @@ coberturaVULA.con.UUII <- rbind(coberturaVULA.con.MigaCU, coberturaVULA.sin.Miga
 
 ## Los que queden sin MIGA de cobre asignado, le asigna el mismo MIGA de la colectora
 
-
 coberturaVULA.con.UUII[is.na(MIGA_Cu), MIGA_Cu := MIGA.Central]
-
 
 ## Cargar datos de ine y Marcar ZET
 
